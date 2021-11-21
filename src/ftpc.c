@@ -100,6 +100,7 @@ void read_listing(int socket_fd, char * buffer)
 {
     do
     {
+        // Reset buffer to read from socket
         memset(buffer, 0, BUFFSIZE);
         read(socket_fd, buffer, BUFFSIZE);
         printf("%s", buffer);

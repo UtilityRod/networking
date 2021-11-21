@@ -79,7 +79,6 @@ void send_listing(int socket_fd, char * buffer)
         }
         // Done with directory so close
         closedir(d);
-        printf("Check\n");
         // Check to see if there is enough space to append EOT to buffer
         if (BUFFSIZE - strlen(buffer) >= 1)
         {
