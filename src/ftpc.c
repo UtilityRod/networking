@@ -103,7 +103,7 @@ void read_listing(int socket_fd, char * buffer)
         memset(buffer, 0, BUFFSIZE);
         read(socket_fd, buffer, BUFFSIZE);
         printf("%s", buffer);
-    } while (strcmp(buffer, "\0") != 0);
+    } while (strchr(buffer, 0x4) == NULL);
     
     fputs("\n", stdout);
 }
