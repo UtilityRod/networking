@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <dirent.h>
+#include <sys/stat.h>
 
 enum {BUFFSIZE = 512};
 typedef enum {QUIT, LIST, PULL, PUSH} COMMAND;
@@ -54,8 +55,9 @@ void send_listing(int socket_fd, char * buffer)
         int file_index = 1;
         while((dir = readdir(d)) != NULL)
         {
-            int dot_check = (strcmp(dir->d_name, ".") == 0) || (strcmp(dir->d_name, "..") == 0);
-            if (dot_check != 1)
+            struct stat file_stats;
+            stat(dir->d_name, &file_stats);
+            if (S_ISREG(file_stats.st_mode))
             {
                 size_t amt_left = BUFFSIZE - strlen(buffer);
                 if (amt_left < strlen(dir->d_name))

@@ -1,3 +1,4 @@
 ftpc
 ftps
 ftpd
+obj/*.o
