@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <dirent.h>
+#include <sys/stat.h>
 
 enum {BUFFSIZE = 512};
 typedef enum {QUIT, LIST, PULL, PUSH} COMMAND;
@@ -54,26 +55,46 @@ void send_listing(int socket_fd, char * buffer)
         int file_index = 1;
         while((dir = readdir(d)) != NULL)
         {
-            int dot_check = (strcmp(dir->d_name, ".") == 0) || (strcmp(dir->d_name, "..") == 0);
-            if (dot_check != 1)
+            // Iterate through every file inside of the FTP directory
+            struct stat file_stats;
+            stat(dir->d_name, &file_stats);
+            // Check if the file is a regular file (Ignore directories)
+            if (S_ISREG(file_stats.st_mode))
             {
+                // Check to see if you have enough space in the buffer
                 size_t amt_left = BUFFSIZE - strlen(buffer);
                 if (amt_left < strlen(dir->d_name))
                 {
+                    // Not enough space in buffer. Send what you have and reset the buffer
                     write(socket_fd, buffer, strlen(buffer));
                     memset(buffer, 0, BUFFSIZE);
                 }
-
+                // Concatenate the file to the buffer string
                 strncat(buffer, dir->d_name, strlen(dir->d_name));
+                // TODO: Change from \t and \n to just a space for client to handle
                 file_index % 10 ? strcat(buffer, "\t") :  strcat(buffer, "\n");
+                // Update the index
                 file_index = (file_index + 1) % 10;
             }
         }
-        write(socket_fd, buffer, strlen(buffer));
-        sleep(1);
-        memset(buffer, 0, BUFFSIZE);
-        write(socket_fd, buffer, 1);
+        // Done with directory so close
         closedir(d);
+        // Check to see if there is enough space to append EOT to buffer
+        if (BUFFSIZE - strlen(buffer) >= 1)
+        {
+            // Enough space just concat
+            char EOT = 0x4;
+            strncat(buffer, &EOT, sizeof(char));
+        }
+        else
+        {
+            // Not enough space write data to socket, reset memory, and put EOT in buffer
+            write(socket_fd, buffer, strlen(buffer));
+            memset(buffer, 0, BUFFSIZE);
+            buffer[0] = 0x04;
+        }
+        // Write reamaing data into the buffer
+        write(socket_fd, buffer, strlen(buffer));
     }
     
     return;
