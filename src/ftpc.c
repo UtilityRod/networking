@@ -1,21 +1,25 @@
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <arpa/inet.h>
-#include <unistd.h>
+#include "socket_factory.h"
+#include <stddef.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 enum {BUFFSIZE = 512};
 typedef enum {QUIT, LIST, PULL, PUSH} COMMAND;
 
-int server_connect(const char * addr, unsigned int port);
 unsigned int get_command(char * buffer);
 void read_listing(int socket_fd, char * buffer);
 
 int main(void)
 {
-    int socket_fd = server_connect("127.0.0.1", 44567);
+    socket_factory_t * factory = factory_init("127.0.0.1", 44567);
+    if (server_connect(factory) == 0) 
+    {
+        // Did not connect correctly
+        return -1;
+    }
+    int socket_fd = factory_get_socket(factory);
     char * buffer = calloc(sizeof(char), BUFFSIZE);
     while (1)
     {
@@ -27,7 +31,7 @@ int main(void)
         {
             case QUIT:
                 free(buffer);
-                close(socket_fd);
+                factory_destroy(factory);
                 return 0;
             case LIST:
                 read_listing(socket_fd, buffer);
@@ -40,32 +44,6 @@ int main(void)
                 break;
         }
     }
-}
-
-int server_connect(const char * addr, unsigned int port)
-{
-    // Create socket file descriptor
-    int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-    
-    if (socket_fd < 0)
-    {
-        perror("Socket create");
-        return -1;
-    }
-    
-    struct sockaddr_in server_addr;
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(port);
-    server_addr.sin_addr.s_addr = inet_addr(addr);
-    
-    if(connect(socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
-    {
-        perror("Socket connect");
-        close(socket_fd);
-        return -1;
-    }
-    
-    return socket_fd;
 }
 
 unsigned int get_command(char * buffer)

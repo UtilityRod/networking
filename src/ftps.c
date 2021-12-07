@@ -28,7 +28,10 @@ int main(int argc, char * argv[])
             case QUIT:
                 free(buffer);
                 shutdown(socket_fd, SHUT_RDWR);
-                close(socket_fd);
+                if (socket_fd >= 0) 
+                {
+                    close(socket_fd);
+                }
                 return 0;
             case LIST: ;
                 send_listing(socket_fd, buffer);
