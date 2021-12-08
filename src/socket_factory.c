@@ -6,15 +6,16 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <netdb.h>
 
 
 struct socket_factory_ {
     const char * ip_addr;
-    unsigned int port;
+    const char * port;
     int socket;
 };
 
-socket_factory_t * factory_init(const char * ip_addr, unsigned int port) 
+socket_factory_t * factory_init(const char * ip_addr, const char * port) 
 {
     socket_factory_t * new_factory = malloc(sizeof(socket_factory_t));
     new_factory->ip_addr = ip_addr;
@@ -27,66 +28,80 @@ void factory_destroy(socket_factory_t * factory)
 {
     if (factory->socket != -1)
     {
+        // Shutdown and close listening socket if it exists
         shutdown(factory->socket, SHUT_RDWR);
         close(factory->socket);
     }
-    
+    // Free memory for factory
     free(factory);
 } 
 
-int server_setup(socket_factory_t * factory)
+int server_setup(socket_factory_t * factory) 
 {
-    // Create TCP socket using AF_INET family
-    int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+    // Struct to hold hints for server addr info
+    struct addrinfo hints = {0};
+    // Set the hints to proper values
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    // Struct to hold the results of get addrinfo
+    struct addrinfo * results;
+    // Get the address info of the server
+    int err = getaddrinfo(NULL, factory->port, &hints, &results);
+    if (err != 0) 
+    {
+        // Could not get address info return back to calling function
+        perror("Could not get address information.");
+        return 0;
+    }
+    // Create socket using results from getaddrinfo
+    int socket_fd = socket(results->ai_family, results->ai_socktype, results->ai_protocol);
     if (socket_fd < 0)
     {
-        // Socket not created properly
+        // Socket not created properly return back to calling function
         perror("Socket creation.");
+        freeaddrinfo(results);
         return 0;
     }
     
-    // Assign server address information to struct
-    struct sockaddr_in server_addr;
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(factory->port);
-    server_addr.sin_addr.s_addr = inet_addr(factory->ip_addr);
-    
-    // Bind socket to address
-    if (bind(socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    // Bind socket to address using results from getaddrinfo
+    if (bind(socket_fd, results->ai_addr, results->ai_addrlen) < 0)
     {
-        // Socket bind failed
+        // Socket bind failed return back to calling function
         perror("Socket Bind");
+        freeaddrinfo(results);
         close(socket_fd);
         return 0;
     }
-    
-    // Listen on socket
+    // Free address info struct
+    freeaddrinfo(results);
+    // Listen on socket using newly created socket file descriptor
     if (listen(socket_fd, 0) < 0)
     {
-        // Socket listen failed
+        // Socket listen failed return back to calling function
         perror("Socket Listen");
         close(socket_fd);
         return 0;
     }
-    
-    // Return socket_fd for the connection handler
+    // Set socket file descriptor to factory->socket
     factory->socket = socket_fd;
+    // Return 1 to signal server was properly setup
     return 1;
 }
 
 void fork_listen(socket_factory_t * factory)
 {
-    // Accept connection on socket
-    struct sockaddr_in client_addr;
-    unsigned int client_sz = sizeof(client_addr);
-    // socket_connection -> file descriptor for connected client
-    int socket_connection = accept(factory->socket, (struct sockaddr *)&client_addr, &client_sz);
+    // Structure that holds client information
+    struct sockaddr_storage client;
+    // Structure size
+    socklen_t client_sz = sizeof(client);
+    // Accept connections on socket
+    int socket_connection = accept(factory->socket, (struct sockaddr *)&client, &client_sz);
     if (socket_connection < 0)
     {
         // Accept failed so return
         return;
     }
-    
+
     // PID of parent/child from fork()
     pid_t pid = fork();
     // If pid is 0 it is the child. Execute binary
@@ -113,28 +128,39 @@ void fork_listen(socket_factory_t * factory)
 
 int server_connect(socket_factory_t * factory)
 {
-    // Create socket file descriptor
-    int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-    
-    if (socket_fd < 0)
+    // Structure that holds server information
+    struct addrinfo * results;
+    // Get addr infor for server
+    int err = getaddrinfo(factory->ip_addr, factory->port, NULL, &results);
+    if (err != 0)
     {
-        perror("Socket create");
+        // Couldn't get information return back to calling program
+        perror("Could not get address information.");
         return 0;
     }
-    
-    struct sockaddr_in server_addr;
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(factory->port);
-    server_addr.sin_addr.s_addr = inet_addr(factory->ip_addr);
-    
-    if(connect(socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    // Create socket to connect to server
+    int socket_fd = socket(results->ai_family, results->ai_socktype, 0);
+    if (socket_fd < 0)
     {
+        // Socket creation failed return back to calling function
+        perror("Socket create");
+        freeaddrinfo(results);
+        return 0;
+    }
+    // Connect to server using created socket and server information
+    if(connect(socket_fd, results->ai_addr, results->ai_addrlen) < 0)
+    {
+        // Could not connect to socket return to calling function
         perror("Socket connect");
+        freeaddrinfo(results);
         close(socket_fd);
         return 0;
     }
-    
+    // Free the addr info struct
+    freeaddrinfo(results);
+    // Assign the socket file descriptor to factory
     factory->socket = socket_fd;
+    // Return 1 to signal that you are successfully connected
     return 1;
 }
 

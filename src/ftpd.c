@@ -17,7 +17,7 @@ int main(void)
     establish_handler(SIGCHLD, signal_handler);
     establish_handler(SIGINT, signal_handler);
     // Setup socket to listen at given IP and Port
-    socket_factory_t * factory = factory_init("127.0.0.1", 44567);
+    socket_factory_t * factory = factory_init("127.0.0.1", "44567");
     // Only if socket is greater than 0 
     // will you try to accept connections
     if (server_setup(factory) > 0)
