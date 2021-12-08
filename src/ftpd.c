@@ -20,7 +20,7 @@ int main(void)
     socket_factory_t * factory = factory_init("127.0.0.1", "44567");
     // Only if socket is greater than 0 
     // will you try to accept connections
-    if (server_setup(factory) > 0)
+    if (tcp_server_setup(factory) > 0)
     {
         while (1) 
         {

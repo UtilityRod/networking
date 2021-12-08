@@ -8,6 +8,8 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+static int server_setup(socket_factory_t * factory, struct addrinfo hints);
+
 
 struct socket_factory_ {
     const char * ip_addr;
@@ -35,58 +37,6 @@ void factory_destroy(socket_factory_t * factory)
     // Free memory for factory
     free(factory);
 } 
-
-int server_setup(socket_factory_t * factory) 
-{
-    // Struct to hold hints for server addr info
-    struct addrinfo hints = {0};
-    // Set the hints to proper values
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    // Struct to hold the results of get addrinfo
-    struct addrinfo * results;
-    // Get the address info of the server
-    int err = getaddrinfo(NULL, factory->port, &hints, &results);
-    if (err != 0) 
-    {
-        // Could not get address info return back to calling function
-        perror("Could not get address information.");
-        return 0;
-    }
-    // Create socket using results from getaddrinfo
-    int socket_fd = socket(results->ai_family, results->ai_socktype, results->ai_protocol);
-    if (socket_fd < 0)
-    {
-        // Socket not created properly return back to calling function
-        perror("Socket creation.");
-        freeaddrinfo(results);
-        return 0;
-    }
-    
-    // Bind socket to address using results from getaddrinfo
-    if (bind(socket_fd, results->ai_addr, results->ai_addrlen) < 0)
-    {
-        // Socket bind failed return back to calling function
-        perror("Socket Bind");
-        freeaddrinfo(results);
-        close(socket_fd);
-        return 0;
-    }
-    // Free address info struct
-    freeaddrinfo(results);
-    // Listen on socket using newly created socket file descriptor
-    if (listen(socket_fd, 0) < 0)
-    {
-        // Socket listen failed return back to calling function
-        perror("Socket Listen");
-        close(socket_fd);
-        return 0;
-    }
-    // Set socket file descriptor to factory->socket
-    factory->socket = socket_fd;
-    // Return 1 to signal server was properly setup
-    return 1;
-}
 
 void fork_listen(socket_factory_t * factory)
 {
@@ -167,5 +117,71 @@ int server_connect(socket_factory_t * factory)
 int factory_get_socket(socket_factory_t * factory)
 {
     return factory->socket;
+}
+
+int udp_server_setup(socket_factory_t * factory)
+{
+    struct addrinfo hints = {0};
+    hints.ai_family = PF_UNSPEC;
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_flags = AI_PASSIVE;
+    return server_setup(factory, hints);
+}
+
+int tcp_server_setup(socket_factory_t * factory)
+{
+    // Struct to hold hints for server addr info
+    struct addrinfo hints = {0};
+    // Set the hints to proper values
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    return server_setup(factory, hints);
+}
+
+static int server_setup(socket_factory_t * factory, struct addrinfo hints) 
+{
+    // Struct to hold the results of get addrinfo
+    struct addrinfo * results;
+    // Get the address info of the server
+    int err = getaddrinfo(NULL, factory->port, &hints, &results);
+    if (err != 0) 
+    {
+        // Could not get address info return back to calling function
+        perror("Could not get address information.");
+        return 0;
+    }
+    // Create socket using results from getaddrinfo
+    int socket_fd = socket(results->ai_family, results->ai_socktype, results->ai_protocol);
+    if (socket_fd < 0)
+    {
+        // Socket not created properly return back to calling function
+        perror("Socket creation.");
+        freeaddrinfo(results);
+        return 0;
+    }
+    
+    // Bind socket to address using results from getaddrinfo
+    if (bind(socket_fd, results->ai_addr, results->ai_addrlen) < 0)
+    {
+        // Socket bind failed return back to calling function
+        perror("Socket Bind");
+        freeaddrinfo(results);
+        close(socket_fd);
+        return 0;
+    }
+    // Free address info struct
+    freeaddrinfo(results);
+    // Listen on socket using newly created socket file descriptor
+    if (listen(socket_fd, 0) < 0)
+    {
+        // Socket listen failed return back to calling function
+        perror("Socket Listen");
+        close(socket_fd);
+        return 0;
+    }
+    // Set socket file descriptor to factory->socket
+    factory->socket = socket_fd;
+    // Return 1 to signal server was properly setup
+    return 1;
 }
 // END OF SOURCE
