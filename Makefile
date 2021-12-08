@@ -1,7 +1,7 @@
 CFLAGS += -Wall -Wextra -Wpedantic -Waggregate-return -Wwrite-strings -Wvla -Wfloat-equal
 
 .PHONY: all
-all: ftpd ftps ftpc
+all: ftpd ftps ftpc udp
 
 ftpd: ftpd.o socket_factory.o
 	$(CC) $(CFLAGS) -o ftpd ./obj/ftpd.o ./obj/socket_factory.o -lrt
@@ -24,16 +24,16 @@ ftpc.o: ./src/ftpc.c
 udp: socket_factory.o udps udpc 
 	
 udps: udps.o
-	$(CC) $(CFLAGS) -g -o udps ./obj/udps.o ./obj/socket_factory.o -lrt
+	$(CC) $(CFLAGS) -o udps ./obj/udps.o ./obj/socket_factory.o -lrt
 	
 udps.o: ./src/udps.c
-	$(CC) $(CFLAGS) -g -o ./obj/udps.o -c ./src/udps.c
+	$(CC) $(CFLAGS) -o ./obj/udps.o -c ./src/udps.c
 	
 udpc: udpc.o
-	$(CC) $(CFLAGS) -g -o udpc ./obj/udpc.o ./obj/socket_factory.o -lrt
+	$(CC) $(CFLAGS) -o udpc ./obj/udpc.o ./obj/socket_factory.o -lrt
 	
 udpc.o: ./src/udpc.c
-	$(CC) $(CFLAGS) -g -o ./obj/udpc.o -c ./src/udpc.c
+	$(CC) $(CFLAGS) -o ./obj/udpc.o -c ./src/udpc.c
 	
 socket_factory.o: ./src/socket_factory.c
 	$(CC) $(CFLAGS) -o ./obj/socket_factory.o -c ./src/socket_factory.c

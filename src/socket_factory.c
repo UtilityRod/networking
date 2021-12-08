@@ -14,10 +14,11 @@ static int server_setup(socket_factory_t * factory, struct addrinfo hints);
 enum {BUFFSIZE = 512};
 
 struct socket_factory_ {
-    const char * ip_addr;
-    const char * port;
-    char * buffer;
-    int socket;
+    const char * ip_addr; // String IP address
+    const char * port; // String port
+    char * buffer; // Buffer for server/client communication
+    int socket; // The socket for communication
+    struct  addrinfo * results; // struct used for getaddrinfo()
 };
 
 socket_factory_t * factory_init(const char * ip_addr, const char * port) 
@@ -36,15 +37,120 @@ void factory_destroy(socket_factory_t * factory)
     if (factory->socket != -1)
     {
         // Shutdown and close listening socket if it exists
-        shutdown(factory->socket, SHUT_RDWR);
         close(factory->socket);
     }
+    // Free the struct used for getaddrinfo()
+    freeaddrinfo(factory->results);
     // Free memory for factory
     free(factory->buffer);
     free(factory);
+}
+
+int factory_get_socket(socket_factory_t * factory)
+{
+    return factory->socket;
 } 
 
-void fork_listen(socket_factory_t * factory)
+int server_connect(socket_factory_t * factory, socket_type type)
+{
+    // Get addr infor for server
+    int err = getaddrinfo(factory->ip_addr, factory->port, NULL, &factory->results);
+    if (err != 0)
+    {
+        // Couldn't get information return back to calling program
+        perror("Could not get address information.");
+        return 0;
+    }
+    // Check to see if you need to use TCP or UDP socket type
+    int sock_type = (type == TCP) ? factory->results->ai_socktype : SOCK_DGRAM;
+    // Create socket to communication with server
+    int socket_fd = socket(factory->results->ai_family, sock_type, 0);
+    if (socket_fd < 0)
+    {
+        // Socket creation failed return back to calling function
+        perror("Socket create");
+        return 0;
+    }
+    // Connect to server using created socket and server information
+    if(type == TCP && connect(socket_fd, factory->results->ai_addr, factory->results->ai_addrlen) < 0)
+    {
+        // Could not connect to socket return to calling function
+        perror("Socket connect");
+        close(socket_fd);
+        return 0;
+    }
+    // Assign the socket file descriptor to factory
+    factory->socket = socket_fd;
+    // Return 1 to signal that you are successfully connected
+    return 1;
+}
+
+char * udp_recv_msg(socket_factory_t * factory)
+{
+    // Struct to hold the clients address information
+    struct sockaddr_storage client;
+    socklen_t client_sz = sizeof(client);
+    // Zero out buffer for clean data read
+    memset(factory->buffer, 0, BUFFSIZE);
+    // Block on recvfrom until client sends data
+    ssize_t received = recvfrom(factory->socket, factory->buffer, BUFFSIZE - 1,
+                                                    0, (struct sockaddr *)&client, &client_sz);
+    // Check to see if data was received
+    if (received < 0)
+    {
+        perror("Error trying to receive from.");
+        return 0;
+    }
+    // Append null terminating character at the end of the string to ensure length
+    // is less than BUFFSIZE
+    factory->buffer[received] = '\0';
+    // Return the pointer to the buffer back to the calling function
+    return factory->buffer;
+}
+
+int udp_send_msg(socket_factory_t * factory, char * msg) 
+{
+    // Send the message using the factory's results struct
+    int sent = sendto(factory->socket, msg, strlen(msg), 0,
+                                factory->results->ai_addr, factory->results->ai_addrlen);
+    // Quick check to see if data was sent
+    if (sent < 0)
+    {
+        perror("Did not send any data");
+        return 0;
+    }
+    else
+    {
+        printf("Amount sent: %d\n", sent);
+    }
+    
+    return 1;
+}
+
+int tcp_server_setup(socket_factory_t * factory)
+{
+    // Struct to hold hints for server addr info
+    struct addrinfo hints = {0};
+    // Set the hints to proper values
+    hints.ai_family = AF_INET; // IPv6 or IPv4
+    hints.ai_socktype = SOCK_STREAM; // TCP
+    if (!server_setup(factory, hints)) 
+    {
+        return 0;
+    }
+    // Listen on socket using newly created socket file descriptor
+    if (listen(factory->socket, 0) < 0)
+    {
+        // Socket listen failed return back to calling function
+        perror("Socket Listen");
+        close(factory->socket);
+        return 0;
+    }
+
+    return 1;
+}
+
+void tcp_fork_listen(socket_factory_t * factory)
 {
     // Structure that holds client information
     struct sockaddr_storage client;
@@ -82,145 +188,21 @@ void fork_listen(socket_factory_t * factory)
     return;
 }
 
-int udp_send_msg(socket_factory_t * factory, char * msg) 
-{
-    // Structure that holds server information
-    struct addrinfo * results;
-    // Get addr infor for server
-    int err = getaddrinfo(factory->ip_addr, factory->port, NULL, &results);
-    if (err != 0)
-    {
-        // Couldn't get information return back to calling program
-        perror("Could not get address information.");
-        return 0;
-    }
-    // Create socket to connect to server
-    int socket_fd = socket(results->ai_family, SOCK_DGRAM, 0);
-    if (socket_fd < 0)
-    {
-        // Socket creation failed return back to calling function
-        perror("Socket create");
-        freeaddrinfo(results);
-        return 0;
-    }
-    freeaddrinfo(results);
-    
-    int sent = sendto(socket_fd, msg, strlen(msg), 0,
-                                results->ai_addr, results->ai_addrlen);
-                                
-    if (sent < 0)
-    {
-        perror("Did not send any data");
-        close(socket_fd);
-        return 0;
-    }
-    else
-    {
-        printf("Amount sent: %d\n", sent);
-    }
-    
-    close(socket_fd);
-    return 1;
-}
-
-int server_connect(socket_factory_t * factory)
-{
-    // Structure that holds server information
-    struct addrinfo * results;
-    // Get addr infor for server
-    int err = getaddrinfo(factory->ip_addr, factory->port, NULL, &results);
-    if (err != 0)
-    {
-        // Couldn't get information return back to calling program
-        perror("Could not get address information.");
-        return 0;
-    }
-    // Create socket to connect to server
-    int socket_fd = socket(results->ai_family, results->ai_socktype, 0);
-    if (socket_fd < 0)
-    {
-        // Socket creation failed return back to calling function
-        perror("Socket create");
-        freeaddrinfo(results);
-        return 0;
-    }
-    // Connect to server using created socket and server information
-    if(connect(socket_fd, results->ai_addr, results->ai_addrlen) < 0)
-    {
-        // Could not connect to socket return to calling function
-        perror("Socket connect");
-        freeaddrinfo(results);
-        close(socket_fd);
-        return 0;
-    }
-    // Free the addr info struct
-    freeaddrinfo(results);
-    // Assign the socket file descriptor to factory
-    factory->socket = socket_fd;
-    // Return 1 to signal that you are successfully connected
-    return 1;
-}
-
-int factory_get_socket(socket_factory_t * factory)
-{
-    return factory->socket;
-}
-
 int udp_server_setup(socket_factory_t * factory)
 {
+    // Setup hints for udp server
     struct addrinfo hints = {0};
-    hints.ai_family = PF_UNSPEC;
-    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_family = PF_UNSPEC; // IPv6 or IPv4
+    hints.ai_socktype = SOCK_DGRAM; // UDP
     hints.ai_flags = AI_PASSIVE;
+    // No need to listen due to UDP, so just pass return value from server setup
     return server_setup(factory, hints);
-}
-
-int tcp_server_setup(socket_factory_t * factory)
-{
-    // Struct to hold hints for server addr info
-    struct addrinfo hints = {0};
-    // Set the hints to proper values
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    if (!server_setup(factory, hints)) 
-    {
-        return 0;
-    }
-    // Listen on socket using newly created socket file descriptor
-    if (listen(factory->socket, 0) < 0)
-    {
-        // Socket listen failed return back to calling function
-        perror("Socket Listen");
-        close(factory->socket);
-        return 0;
-    }
-
-    return 1;
-}
-
-char * udp_recv_msg(socket_factory_t * factory)
-{
-    struct sockaddr_storage client;
-    socklen_t client_sz = sizeof(client);
-    memset(factory->buffer, 0, BUFFSIZE);
-    ssize_t received = recvfrom(factory->socket, factory->buffer, BUFFSIZE - 1,
-                                                    0, (struct sockaddr *)&client, &client_sz);
-    
-    if (received < 0)
-    {
-        perror("Error trying to receive from.");
-        return 0;
-    }
-    factory->buffer[received] = '\0';
-    return factory->buffer;
 }
 
 static int server_setup(socket_factory_t * factory, struct addrinfo hints) 
 {
-    // Struct to hold the results of get addrinfo
-    struct addrinfo * results;
     // Get the address info of the server
-    int err = getaddrinfo(NULL, factory->port, &hints, &results);
+    int err = getaddrinfo(NULL, factory->port, &hints, &factory->results);
     if (err != 0) 
     {
         // Could not get address info return back to calling function
@@ -228,26 +210,22 @@ static int server_setup(socket_factory_t * factory, struct addrinfo hints)
         return 0;
     }
     // Create socket using results from getaddrinfo
-    int socket_fd = socket(results->ai_family, results->ai_socktype, results->ai_protocol);
+    int socket_fd = socket(factory->results->ai_family, factory->results->ai_socktype, factory->results->ai_protocol);
     if (socket_fd < 0)
     {
         // Socket not created properly return back to calling function
         perror("Socket creation.");
-        freeaddrinfo(results);
         return 0;
     }
     
     // Bind socket to address using results from getaddrinfo
-    if (bind(socket_fd, results->ai_addr, results->ai_addrlen) < 0)
+    if (bind(socket_fd, factory->results->ai_addr, factory->results->ai_addrlen) < 0)
     {
         // Socket bind failed return back to calling function
         perror("Socket Bind");
-        freeaddrinfo(results);
         close(socket_fd);
         return 0;
     }
-    // Free address info struct
-    freeaddrinfo(results);
     // Set socket file descriptor to factory->socket
     factory->socket = socket_fd;
     // Return 1 to signal server was properly setup

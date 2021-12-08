@@ -14,7 +14,7 @@ void read_listing(int socket_fd, char * buffer);
 int main(void)
 {
     socket_factory_t * factory = factory_init("127.0.0.1", "44567");
-    if (server_connect(factory) == 0) 
+    if (server_connect(factory, TCP) == 0) 
     {
         // Did not connect correctly
         return -1;

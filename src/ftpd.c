@@ -24,7 +24,7 @@ int main(void)
     {
         while (1) 
         {
-            fork_listen(factory);
+            tcp_fork_listen(factory);
             if (accept_flag != 0) 
             {
                 break;
