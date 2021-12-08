@@ -7,13 +7,16 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <string.h>
 
 static int server_setup(socket_factory_t * factory, struct addrinfo hints);
 
+enum {BUFFSIZE = 512};
 
 struct socket_factory_ {
     const char * ip_addr;
     const char * port;
+    char * buffer;
     int socket;
 };
 
@@ -23,6 +26,8 @@ socket_factory_t * factory_init(const char * ip_addr, const char * port)
     new_factory->ip_addr = ip_addr;
     new_factory->port = port;
     new_factory->socket = -1;
+    new_factory->buffer = malloc(sizeof(char) * BUFFSIZE);
+    memset(new_factory->buffer, 0, BUFFSIZE);
     return new_factory;
 }
 
@@ -35,6 +40,7 @@ void factory_destroy(socket_factory_t * factory)
         close(factory->socket);
     }
     // Free memory for factory
+    free(factory->buffer);
     free(factory);
 } 
 
@@ -135,7 +141,37 @@ int tcp_server_setup(socket_factory_t * factory)
     // Set the hints to proper values
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
-    return server_setup(factory, hints);
+    if (!server_setup(factory, hints)) 
+    {
+        return 0;
+    }
+    // Listen on socket using newly created socket file descriptor
+    if (listen(factory->socket, 0) < 0)
+    {
+        // Socket listen failed return back to calling function
+        perror("Socket Listen");
+        close(factory->socket);
+        return 0;
+    }
+
+    return 1;
+}
+
+char * udp_recv_msg(socket_factory_t * factory)
+{
+    struct sockaddr_storage client;
+    socklen_t client_sz = sizeof(client);
+    memset(factory->buffer, 0, BUFFSIZE);
+    ssize_t received = recvfrom(factory->socket, factory->buffer, BUFFSIZE - 1,
+                                                    0, (struct sockaddr *)&client, &client_sz);
+    
+    if (received < 0)
+    {
+        perror("Error trying to receive from.");
+        return 0;
+    }
+    factory->buffer[received] = '\0';
+    return factory->buffer;
 }
 
 static int server_setup(socket_factory_t * factory, struct addrinfo hints) 
@@ -171,14 +207,6 @@ static int server_setup(socket_factory_t * factory, struct addrinfo hints)
     }
     // Free address info struct
     freeaddrinfo(results);
-    // Listen on socket using newly created socket file descriptor
-    if (listen(socket_fd, 0) < 0)
-    {
-        // Socket listen failed return back to calling function
-        perror("Socket Listen");
-        close(socket_fd);
-        return 0;
-    }
     // Set socket file descriptor to factory->socket
     factory->socket = socket_fd;
     // Return 1 to signal server was properly setup

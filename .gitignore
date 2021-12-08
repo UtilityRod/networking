@@ -2,3 +2,5 @@ ftpc
 ftps
 ftpd
 obj/*.o
+udpc
+udps

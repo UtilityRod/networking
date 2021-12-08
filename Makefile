@@ -21,6 +21,20 @@ ftpc: ftpc.o
 ftpc.o: ./src/ftpc.c
 	$(CC) $(CFLAGS) -o ./obj/ftpc.o -c ./src/ftpc.c
 	
+udp: socket_factory.o udps udpc 
+	
+udps: udps.o
+	$(CC) $(CFLAGS) -o udps ./obj/udps.o ./obj/socket_factory.o -lrt
+	
+udps.o: ./src/udps.c
+	$(CC) $(CFLAGS) -o ./obj/udps.o -c ./src/udps.c
+	
+udpc: udpc.o
+	$(CC) $(CFLAGS) -o udpc ./obj/udpc.o ./obj/socket_factory.o -lrt
+	
+udpc.o: ./src/udpc.c
+	$(CC) $(CFLAGS) -o ./obj/udpc.o -c ./src/udpc.c
+	
 socket_factory.o: ./src/socket_factory.c
 	$(CC) $(CFLAGS) -o ./obj/socket_factory.o -c ./src/socket_factory.c
 	
@@ -31,4 +45,4 @@ debug: all
 
 .PHONY: clean
 clean:
-	$(RM) ./obj/*.o ftpd ftps ftpc
+	$(RM) ./obj/*.o ftpd ftps ftpc udps udpc
