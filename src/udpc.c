@@ -3,5 +3,8 @@
 
 int main(void)
 {
-    printf("Hello World!\n");
+    char msg[] = "Hello from client\n";
+    socket_factory_t * factory = factory_init("0.0.0.0", "44567");
+    udp_send_msg(factory, msg);
+    factory_destroy(factory);
 }

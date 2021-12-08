@@ -24,16 +24,16 @@ ftpc.o: ./src/ftpc.c
 udp: socket_factory.o udps udpc 
 	
 udps: udps.o
-	$(CC) $(CFLAGS) -o udps ./obj/udps.o ./obj/socket_factory.o -lrt
+	$(CC) $(CFLAGS) -g -o udps ./obj/udps.o ./obj/socket_factory.o -lrt
 	
 udps.o: ./src/udps.c
-	$(CC) $(CFLAGS) -o ./obj/udps.o -c ./src/udps.c
+	$(CC) $(CFLAGS) -g -o ./obj/udps.o -c ./src/udps.c
 	
 udpc: udpc.o
-	$(CC) $(CFLAGS) -o udpc ./obj/udpc.o ./obj/socket_factory.o -lrt
+	$(CC) $(CFLAGS) -g -o udpc ./obj/udpc.o ./obj/socket_factory.o -lrt
 	
 udpc.o: ./src/udpc.c
-	$(CC) $(CFLAGS) -o ./obj/udpc.o -c ./src/udpc.c
+	$(CC) $(CFLAGS) -g -o ./obj/udpc.o -c ./src/udpc.c
 	
 socket_factory.o: ./src/socket_factory.c
 	$(CC) $(CFLAGS) -o ./obj/socket_factory.o -c ./src/socket_factory.c

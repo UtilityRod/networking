@@ -11,5 +11,6 @@ int factory_get_socket(socket_factory_t * factory);
 int tcp_server_setup(socket_factory_t * factory);
 int udp_server_setup(socket_factory_t * factory);
 char * udp_recv_msg(socket_factory_t * factory);
+int udp_send_msg(socket_factory_t * factory, char * msg);
 
 #endif

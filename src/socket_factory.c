@@ -82,6 +82,47 @@ void fork_listen(socket_factory_t * factory)
     return;
 }
 
+int udp_send_msg(socket_factory_t * factory, char * msg) 
+{
+    // Structure that holds server information
+    struct addrinfo * results;
+    // Get addr infor for server
+    int err = getaddrinfo(factory->ip_addr, factory->port, NULL, &results);
+    if (err != 0)
+    {
+        // Couldn't get information return back to calling program
+        perror("Could not get address information.");
+        return 0;
+    }
+    // Create socket to connect to server
+    int socket_fd = socket(results->ai_family, SOCK_DGRAM, 0);
+    if (socket_fd < 0)
+    {
+        // Socket creation failed return back to calling function
+        perror("Socket create");
+        freeaddrinfo(results);
+        return 0;
+    }
+    freeaddrinfo(results);
+    
+    int sent = sendto(socket_fd, msg, strlen(msg), 0,
+                                results->ai_addr, results->ai_addrlen);
+                                
+    if (sent < 0)
+    {
+        perror("Did not send any data");
+        close(socket_fd);
+        return 0;
+    }
+    else
+    {
+        printf("Amount sent: %d\n", sent);
+    }
+    
+    close(socket_fd);
+    return 1;
+}
+
 int server_connect(socket_factory_t * factory)
 {
     // Structure that holds server information
