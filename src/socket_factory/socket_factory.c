@@ -150,7 +150,7 @@ int tcp_server_setup(socket_factory_t * factory)
     return 1;
 }
 
-void tcp_fork_listen(socket_factory_t * factory)
+void tcp_fork_listen(socket_factory_t * factory, char * exe)
 {
     // Structure that holds client information
     struct sockaddr_storage client;
@@ -169,8 +169,6 @@ void tcp_fork_listen(socket_factory_t * factory)
     // If pid is 0 it is the child. Execute binary
     if (pid == 0)
     {
-        // Binary executable path
-        char executable[] = "./ftps";
         // Socket file descriptor string for cmd line arguments
         char * sock_str = malloc(sizeof(char) * 10);
         // Put socket connection FD into string
@@ -179,13 +177,52 @@ void tcp_fork_listen(socket_factory_t * factory)
         // Command line arguments:
         // 1. Executable name
         // 2. Socket connection file descriptor
-        char * args[] = {executable, sock_str, '\0'};
+        char * args[] = {exe, sock_str, '\0'};
         char * envp[] = {'\0'};
         // Call execve on child to perform executable task
-        execve(executable, args, envp);
+        execve(exe, args, envp);
     }
     // There is nothing to return
     return;
+}
+
+int tcp_accept(socket_factory_t * factory)
+{
+    // Structure that holds client information
+    struct sockaddr_storage client;
+    // Structure size
+    socklen_t client_sz = sizeof(client);
+    // Accept connections on socket
+    int socket_connection = accept(factory->socket, (struct sockaddr *)&client, &client_sz);
+    if (socket_connection < 0)
+    {
+        // Accept failed so return
+        return -1;
+    }
+    // Zero out buffer to ensure clean read
+    memset(factory->buffer, 0, BUFFSIZE);
+    // Read data from the socket
+    int amt_read = read(socket_connection, factory->buffer, BUFFSIZE - 1);
+    // If no data is read send error and return
+    if (amt_read <= 0)
+    {
+        perror("Could not read any data");
+        return -1;
+    }
+    // Print out data read from socket
+    printf("Read data from client: %s\n", factory->buffer);
+    return 0;
+}
+
+int tcp_send_msg(socket_factory_t * factory, const char * msg)
+{
+    int amt_sent = write(factory->socket, msg, strlen(msg));
+    if (amt_sent <= 0)
+    {
+        perror("Could not send data");
+        return -1;
+    }
+    return 0;
 }
 
 int udp_server_setup(socket_factory_t * factory)

@@ -4,3 +4,6 @@ ftpd
 obj/*.o
 udpc
 udps
+httpc
+httpd
+https
