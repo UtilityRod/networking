@@ -49,7 +49,17 @@ void factory_destroy(socket_factory_t * factory)
 int factory_get_socket(socket_factory_t * factory)
 {
     return factory->socket;
+}
+
+void factory_set_socket(socket_factory_t * factory, int socket_fd)
+{
+    factory->socket = socket_fd;
 } 
+
+void handle_buffer(socket_factory_t * factory, void (* function)(const char * msg))
+{
+    function(factory->buffer);
+}
 
 int server_connect(socket_factory_t * factory, socket_type type)
 {
@@ -222,6 +232,19 @@ int tcp_send_msg(socket_factory_t * factory, const char * msg)
         perror("Could not send data");
         return -1;
     }
+    return 0;
+}
+
+int tcp_recv_msg(socket_factory_t * factory)
+{
+    memset(factory->buffer, 0, BUFFSIZE);
+    int read_amt = read(factory->socket, factory->buffer, BUFFSIZE - 1);
+    if (read_amt <= 0)
+    {
+        perror("Could not read data");
+        return -1;
+    }
+    factory->buffer[BUFFSIZE - 1] = '\0';
     return 0;
 }
 
