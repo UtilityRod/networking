@@ -10,7 +10,7 @@ void factory_destroy(socket_factory_t * factory);
 int factory_get_socket(socket_factory_t * factory);
 void factory_set_socket(socket_factory_t * factory, int socket_fd);
 int server_connect(socket_factory_t * factory, socket_type type);
-void handle_buffer(socket_factory_t * factory, void (* function)(const char * msg));
+char * handle_buffer(socket_factory_t * factory, char * (* function)(const char * msg));
 // UDP FUNCTIONS
 int udp_server_setup(socket_factory_t * factory);
 char * udp_recv_msg(socket_factory_t * factory);

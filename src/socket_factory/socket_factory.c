@@ -56,9 +56,9 @@ void factory_set_socket(socket_factory_t * factory, int socket_fd)
     factory->socket = socket_fd;
 } 
 
-void handle_buffer(socket_factory_t * factory, void (* function)(const char * msg))
+char * handle_buffer(socket_factory_t * factory, char * (* function)(const char * msg))
 {
-    function(factory->buffer);
+    return function(factory->buffer);
 }
 
 int server_connect(socket_factory_t * factory, socket_type type)
