@@ -1,9 +1,3 @@
-ftpc
-ftps
-ftpd
-obj/*.o
-udpc
-udps
-httpc
-httpd
-https
+sockets
+*.o
+.vscode/
