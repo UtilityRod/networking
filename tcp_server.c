@@ -7,24 +7,26 @@
 #include <netdb.h>
 
 
-struct socket_factory_ 
+struct tcp_server_
 {
-    const char * p_port; // String port
-    int socket_h; // The socket for communication
-    struct addrinfo * p_server_info; // struct used for getaddrinfo()
+    const char * port; // String port
+    int socket_fd; // The socket for communication
+    struct addrinfo * server_info; // struct used for getaddrinfo()
 };
 
-typedef enum backlog_ {BACKLOG = 10} backlog_t;
+typedef enum backlog {BACKLOG = 10} backlog_t;
 
-socket_factory_t * factory_create(const char * p_port) 
+static int setup_server(tcp_server_t * tcp_server);
+
+tcp_server_t * tcp_server_setup(const char * port) 
 {
     /*
      * Initialize the socket factory with default values and the values passed in
      * as arguments.
      */
-    socket_factory_t * p_new = calloc(sizeof(*p_new), 1);
+    tcp_server_t * new = calloc(sizeof(*new), 1);
     
-    if (p_new == NULL)
+    if (new == NULL)
     {
         // calloc did not properly allocate memory
         perror("Error allocating memory for socket factory");
@@ -33,99 +35,41 @@ socket_factory_t * factory_create(const char * p_port)
     else
     {
         // Set default values for struct data
-        p_new->p_port = p_port;
-        p_new->socket_h = -1;
-        p_new->p_server_info = NULL;
+        new->port = port;
+        new->socket_fd = -1;
+        new->server_info = NULL;
     }
     
+    int setup_check = setup_server(new);
+    if (setup_check != 0)
+    {
+        tcp_server_teardown(new);
+        new = NULL;
+    }
     
-    return p_new;
+    return new;
 }
 
-void factory_destroy(socket_factory_t * p_factory) 
+void tcp_server_teardown(tcp_server_t * tcp_server) 
 {
     /*
      * Free all the memory used in the socket factory
      */
-    if (p_factory->socket_h != -1)
+    if (tcp_server->socket_fd != -1)
     {
         // Shutdown and close socket if it exists
-        close(p_factory->socket_h);
+        close(tcp_server->socket_fd);
     }
     // Free the struct used for getaddrinfo()
-    if (p_factory->p_server_info)
+    if (tcp_server->server_info)
     {
-        freeaddrinfo(p_factory->p_server_info);
+        freeaddrinfo(tcp_server->server_info);
     }
     
-    free(p_factory);
+    free(tcp_server);
 }
 
-int tcp_server_setup(socket_factory_t * p_factory)
-{
-    /*
-     * Sets up the hints struct for getaddrinfo, performs all the needed steps
-     * to setup a socket for the TCP server, and then listens on that socket.
-     */
-    // Struct to hold hints for server addr info
-    struct addrinfo hints = {0};
-    // Set the hints to proper values
-    hints.ai_family = AF_UNSPEC; // IPv6 or IPv4
-    hints.ai_socktype = SOCK_STREAM; // TCP
-    hints.ai_flags = AI_PASSIVE; // Use current system's IP
-
-    int err = getaddrinfo(NULL, p_factory->p_port, &hints, &p_factory->p_server_info);
-    if (err != 0) 
-    {
-        // Could not get address info return back to calling function
-        perror("Could not get address information.");
-        return err;
-    }
-    // Loop through each result from getaddrinfo and find first one you can use
-    struct addrinfo * p = NULL; // Iterator for the loop
-    for (p = p_factory->p_server_info; p != NULL; p = p->ai_next)
-    {
-        if ((p_factory->socket_h = socket(p->ai_family, p->ai_socktype, 
-                                            p->ai_protocol)) == -1)
-        {
-            // Could not find address to bind to
-            perror("TCP Server Socket Create.");
-            continue;
-        }
-        int tmp = 1;
-        if (setsockopt(p_factory->socket_h, SOL_SOCKET, SO_REUSEADDR, &tmp, sizeof(int)) == -1)
-        {
-            // Could not correct set socket options
-            perror("TCP Socket Options");
-            exit(-1);
-        }
-
-        if (bind(p_factory->socket_h, p->ai_addr, p->ai_addrlen) == -1)
-        {
-            // Could not bind socket
-            close (p_factory->socket_h);
-            p_factory->socket_h = -1;
-            continue;
-        }
-
-        break;
-    }
-
-    if (p == NULL)
-    {
-        fputs("Server setup failed.\n", stderr);
-        exit(-2);
-    }
-
-    if (listen(p_factory->socket_h, BACKLOG) == -1)
-    {
-        perror("TCP Server Listen.");
-    }
-
-    return 0;
-}
-
-int tcp_accept(socket_factory_t * p_factory)
+int tcp_server_accept(tcp_server_t * tcp_server)
 {
     // Accept on a socket that has been setup for the factory
     // Structure that holds client information
@@ -133,18 +77,18 @@ int tcp_accept(socket_factory_t * p_factory)
     // Structure size
     socklen_t client_sz = sizeof(client);
     // Accept connections on socket
-    int connection = accept(p_factory->socket_h, (struct sockaddr *)&client, &client_sz);
+    int connection = accept(tcp_server->socket_fd, (struct sockaddr *)&client, &client_sz);
     return connection;
 }
 
-void tcp_accept_fork(socket_factory_t * p_factory, char * p_exe)
+void tcp_server_accept_fork(tcp_server_t * tcp_server, char * exe)
 {
     /*
      * Function performs a signle accept on the factory's socket and will fork
      * a child process. The executable passing through dir_path will be passed
      * to execve as the new process.
      */
-    int connection = tcp_accept(p_factory);
+    int connection = tcp_server_accept(tcp_server);
 
     if (connection > 0)
     {
@@ -154,15 +98,15 @@ void tcp_accept_fork(socket_factory_t * p_factory, char * p_exe)
         if (pid == 0)
         {
             // Create argv (args) and envp for execve command
-            char * p_args[] = {p_exe, '\0'};
+            char * args[] = {exe, '\0'};
             // Create character arrays for the environement variables needed for the ashti_handler
-            char * p_env_socket= calloc(sizeof(char), 20); // The connection socket
+            char * env_socket= calloc(sizeof(char), 20); // The connection socket
             // Add correct values into the ENV strings
-            snprintf(p_env_socket, 20, "SOCK=%d", connection);
+            snprintf(env_socket, 20, "SOCK=%d", connection);
             // Add all env variables to envp
-            char * p_envp[] = {p_env_socket, '\0'};
+            char * envp[] = {env_socket, '\0'};
             // Call execve on child to perform executable task
-            execve(p_exe, p_args, p_envp);
+            execve(exe, args, envp);
         }
         else
         {
@@ -172,5 +116,71 @@ void tcp_accept_fork(socket_factory_t * p_factory, char * p_exe)
     
     // There is nothing to return
     return;
+}
+
+static int setup_server(tcp_server_t * tcp_server)
+{
+    /*
+     * Sets up the hints struct for getaddrinfo, performs all the needed steps
+     * to setup a socket for the TCP server, and then listens on that socket.
+     */
+    // Struct to hold hints for server addr info
+    struct addrinfo hints = {
+                                // Set the hints to proper values
+                                .ai_family = AF_UNSPEC, // IPv6 or IPv4
+                                .ai_socktype = SOCK_STREAM, // TCP
+                                .ai_flags = AI_PASSIVE // Use current system's IP
+                            };
+
+    int err = getaddrinfo(NULL, tcp_server->port, &hints, &tcp_server->server_info);
+    if (err != 0) 
+    {
+        // Could not get address info return back to calling function
+        perror("Could not get address information.");
+        return err;
+    }
+    // Loop through each result from getaddrinfo and find first one you can use
+    struct addrinfo * p = NULL; // Iterator for the loop
+    for (p = tcp_server->server_info; p != NULL; p = p->ai_next)
+    {
+        if ((tcp_server->socket_fd = socket(p->ai_family, p->ai_socktype, 
+                                            p->ai_protocol)) == -1)
+        {
+            // Could not find address to bind to
+            perror("TCP Server Socket Create.");
+            continue;
+        }
+        int tmp = 1;
+        if (setsockopt(tcp_server->socket_fd, SOL_SOCKET, SO_REUSEADDR, &tmp, sizeof(int)) == -1)
+        {
+            // Could not correct set socket options
+            perror("TCP Socket Options");
+            return -1;
+        }
+
+        if (bind(tcp_server->socket_fd, p->ai_addr, p->ai_addrlen) == -1)
+        {
+            // Could not bind socket
+            close (tcp_server->socket_fd);
+            tcp_server->socket_fd = -1;
+            continue;
+        }
+
+        break;
+    }
+
+    if (p == NULL)
+    {
+        fputs("Server setup failed.\n", stderr);
+        return -2;
+    }
+
+    if (listen(tcp_server->socket_fd, BACKLOG) == -1)
+    {
+        perror("TCP Server Listen.");
+        return -3;
+    }
+
+    return 0;
 }
 // END OF SOURCE
