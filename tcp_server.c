@@ -1,4 +1,4 @@
-#include <socket_factory.h>
+#include "tcp_server.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -26,7 +26,7 @@ socket_factory_t * factory_create(const char * p_port)
     
     if (p_new == NULL)
     {
-        // malloc did not properly allocate memory
+        // calloc did not properly allocate memory
         perror("Error allocating memory for socket factory");
         return NULL;
     }
@@ -173,5 +173,4 @@ void tcp_accept_fork(socket_factory_t * p_factory, char * p_exe)
     // There is nothing to return
     return;
 }
-
 // END OF SOURCE
