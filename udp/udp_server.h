@@ -1,7 +1,6 @@
 #ifndef _UDP_SERVER_H_
 #define _UDP_SERVER_H_
 
-#include <stddef.h>
 #include <unistd.h>
 
 typedef struct udp_server udp_server_t;

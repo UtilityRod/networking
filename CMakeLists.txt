@@ -6,7 +6,9 @@ set ( DIRECTORIES
     )
 
 set ( SOURCES
+      ${CMAKE_CURRENT_SOURCE_DIR}/tcp/tcp_server.c
       ${CMAKE_CURRENT_SOURCE_DIR}/udp/udp_server.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/udp/udp_client.c
     )
 
 add_compile_options("-g")

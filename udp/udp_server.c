@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <stdio.h>
+#include <stddef.h>
 
 
 struct udp_server
@@ -19,6 +20,7 @@ udp_server_t * udp_server_setup(char * port)
 {
     if (NULL == port)
     {
+        // Port must not be NULL
         return NULL;
     }
 
@@ -26,20 +28,25 @@ udp_server_t * udp_server_setup(char * port)
 
     if (server != NULL)
     {
+        // Memory allocation for server was successfull
         server->port = port;
         server->socket_fd = -1;
-    }
 
-    int tmp_socket_fd = setup_server(server);
 
-    if (tmp_socket_fd <= 0)
-    {
-        udp_server_teardown(server);
-        server = NULL;
-    }
-    else
-    {
-        server->socket_fd = tmp_socket_fd;
+        // Internal server setup
+        int tmp_socket_fd = setup_server(server);
+
+        if (tmp_socket_fd <= 0)
+        {
+            // Internal server setup failed.
+            udp_server_teardown(server);
+            server = NULL;
+        }
+        else
+        {
+            // Internal server setup successful, update structure socker_fd
+            server->socket_fd = tmp_socket_fd;
+        }
     }
 
     return server;
@@ -48,7 +55,7 @@ udp_server_t * udp_server_setup(char * port)
 void udp_server_teardown(udp_server_t * server) 
 {
     /*
-     * Free all the memory used in the socket factory
+     * Free all the memory used in the udp server
      */
     if (server->socket_fd != -1)
     {
@@ -77,8 +84,8 @@ ssize_t udp_server_recv_all(udp_server_t * server, char * buffer, size_t max)
 static int setup_server(udp_server_t * server)
 {
     struct addrinfo hints = {
-                                .ai_family = AF_UNSPEC,
-                                .ai_socktype = SOCK_DGRAM,
+                                .ai_family = AF_UNSPEC, // IPv4 of IPv6
+                                .ai_socktype = SOCK_DGRAM, // UDP
                                 .ai_flags = AI_PASSIVE
                             };
 
@@ -96,13 +103,14 @@ static int setup_server(udp_server_t * server)
     int socket_fd = -1;
     for (p = server->server_info; p != NULL; p = p->ai_next)
     {
+        // Create socket
         socket_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
         if (-1 == socket_fd)
         {
             perror("UDP server socket.");
             continue;
         }
-
+        // Bind to socket
         int bind_check = bind(socket_fd, p->ai_addr, p->ai_addrlen);
         if (-1 == bind_check)
         {
