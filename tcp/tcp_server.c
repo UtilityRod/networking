@@ -24,9 +24,9 @@ tcp_server_t * tcp_server_setup(const char * port)
      * Initialize the socket factory with default values and the values passed in
      * as arguments.
      */
-    tcp_server_t * new = calloc(sizeof(*new), 1);
+    tcp_server_t * server = calloc(sizeof(*server), 1);
     
-    if (new == NULL)
+    if (server == NULL)
     {
         // calloc did not properly allocate memory
         perror("Error allocating memory for socket factory");
@@ -35,41 +35,41 @@ tcp_server_t * tcp_server_setup(const char * port)
     else
     {
         // Set default values for struct data
-        new->port = port;
-        new->socket_fd = -1;
-        new->server_info = NULL;
+        server->port = port;
+        server->socket_fd = -1;
+        server->server_info = NULL;
     }
     
-    int setup_check = setup_server(new);
+    int setup_check = setup_server(server);
     if (setup_check != 0)
     {
-        tcp_server_teardown(new);
-        new = NULL;
+        tcp_server_teardown(server);
+        server = NULL;
     }
     
-    return new;
+    return server;
 }
 
-void tcp_server_teardown(tcp_server_t * tcp_server) 
+void tcp_server_teardown(tcp_server_t * server) 
 {
     /*
      * Free all the memory used in the socket factory
      */
-    if (tcp_server->socket_fd != -1)
+    if (server->socket_fd != -1)
     {
         // Shutdown and close socket if it exists
-        close(tcp_server->socket_fd);
+        close(server->socket_fd);
     }
     // Free the struct used for getaddrinfo()
-    if (tcp_server->server_info)
+    if (server->server_info != NULL)
     {
-        freeaddrinfo(tcp_server->server_info);
+        freeaddrinfo(server->server_info);
     }
     
-    free(tcp_server);
+    free(server);
 }
 
-int tcp_server_accept(tcp_server_t * tcp_server)
+int tcp_server_accept(tcp_server_t * server)
 {
     // Accept on a socket that has been setup for the factory
     // Structure that holds client information
@@ -77,18 +77,18 @@ int tcp_server_accept(tcp_server_t * tcp_server)
     // Structure size
     socklen_t client_sz = sizeof(client);
     // Accept connections on socket
-    int connection = accept(tcp_server->socket_fd, (struct sockaddr *)&client, &client_sz);
+    int connection = accept(server->socket_fd, (struct sockaddr *)&client, &client_sz);
     return connection;
 }
 
-void tcp_server_accept_fork(tcp_server_t * tcp_server, char * exe)
+void tcp_server_accept_fork(tcp_server_t * server, char * exe)
 {
     /*
      * Function performs a signle accept on the factory's socket and will fork
      * a child process. The executable passing through dir_path will be passed
-     * to execve as the new process.
+     * to execve as the server process.
      */
-    int connection = tcp_server_accept(tcp_server);
+    int connection = tcp_server_accept(server);
 
     if (connection > 0)
     {
@@ -118,7 +118,7 @@ void tcp_server_accept_fork(tcp_server_t * tcp_server, char * exe)
     return;
 }
 
-static int setup_server(tcp_server_t * tcp_server)
+static int setup_server(tcp_server_t * server)
 {
     /*
      * Sets up the hints struct for getaddrinfo, performs all the needed steps
@@ -132,7 +132,7 @@ static int setup_server(tcp_server_t * tcp_server)
                                 .ai_flags = AI_PASSIVE // Use current system's IP
                             };
 
-    int err = getaddrinfo(NULL, tcp_server->port, &hints, &tcp_server->server_info);
+    int err = getaddrinfo(NULL, server->port, &hints, &server->server_info);
     if (err != 0) 
     {
         // Could not get address info return back to calling function
@@ -141,28 +141,33 @@ static int setup_server(tcp_server_t * tcp_server)
     }
     // Loop through each result from getaddrinfo and find first one you can use
     struct addrinfo * p = NULL; // Iterator for the loop
-    for (p = tcp_server->server_info; p != NULL; p = p->ai_next)
+    for (p = server->server_info; p != NULL; p = p->ai_next)
     {
-        if ((tcp_server->socket_fd = socket(p->ai_family, p->ai_socktype, 
-                                            p->ai_protocol)) == -1)
+        server->socket_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+        if (-1 == server->socket_fd)
         {
             // Could not find address to bind to
-            perror("TCP Server Socket Create.");
+            perror("TCP server: socket()");
             continue;
         }
         int tmp = 1;
-        if (setsockopt(tcp_server->socket_fd, SOL_SOCKET, SO_REUSEADDR, &tmp, sizeof(int)) == -1)
+        int option_check = setsockopt(server->socket_fd, SOL_SOCKET, SO_REUSEADDR, &tmp, sizeof(int));
+        if (-1 == option_check)
         {
             // Could not correct set socket options
-            perror("TCP Socket Options");
+            close (server->socket_fd);
+            server->socket_fd = -1;
+            perror("TCP server: setsockopt()");
             return -1;
         }
 
-        if (bind(tcp_server->socket_fd, p->ai_addr, p->ai_addrlen) == -1)
+        int bind_check = bind(server->socket_fd, p->ai_addr, p->ai_addrlen);
+        if (-1 == bind_check)
         {
             // Could not bind socket
-            close (tcp_server->socket_fd);
-            tcp_server->socket_fd = -1;
+            close (server->socket_fd);
+            server->socket_fd = -1;
+            perror("TCP server: bind()");
             continue;
         }
 
@@ -175,9 +180,9 @@ static int setup_server(tcp_server_t * tcp_server)
         return -2;
     }
 
-    if (listen(tcp_server->socket_fd, BACKLOG) == -1)
+    if (listen(server->socket_fd, BACKLOG) == -1)
     {
-        perror("TCP Server Listen.");
+        perror("TCP Server: listen()");
         return -3;
     }
 
