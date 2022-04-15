@@ -6,12 +6,14 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+typedef enum {HOSTNAME_SZ = 50} network_sizes_t;
 
 struct tcp_server_
 {
     const char * port; // String port
     int socket_fd; // The socket for communication
     struct addrinfo * server_info; // struct used for getaddrinfo()
+    char hostname[HOSTNAME_SZ];
 };
 
 typedef enum backlog {BACKLOG = 10} backlog_t;
@@ -38,6 +40,8 @@ tcp_server_t * tcp_server_setup(const char * port)
         server->port = port;
         server->socket_fd = -1;
         server->server_info = NULL;
+        gethostname(server->hostname, HOSTNAME_SZ);
+        printf("Hostname %s\n", server->hostname);
     }
     
     int setup_check = setup_server(server);

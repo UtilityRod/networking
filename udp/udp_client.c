@@ -1,4 +1,5 @@
 #include <udp_client.h>
+#include <udp_operations.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -73,29 +74,14 @@ void udp_client_teardown(udp_client_t * client)
     free(client);
 }
 
-ssize_t udp_client_send_mssage(udp_client_t * client, char * buffer, size_t size)
+ssize_t udp_client_send(udp_client_t * client, char * buffer, size_t buffer_sz)
 {
-    struct addrinfo * server_info = client->server_info;
-    ssize_t amount_sent = 0;
-    while (amount_sent != size)
-    {
-        char * offset = buffer + amount_sent;
-        ssize_t tmp_read = sendto(client->socket_fd, offset, strlen(offset), 0, server_info->ai_addr, server_info->ai_addrlen);
+    return udp_send_all(client->socket_fd, client->server_info, buffer, buffer_sz);
+}
 
-        if (-1 == tmp_read)
-        {
-            // Error of read
-            perror("Client sendto");
-            break;
-        }
-        else
-        {
-            // Partial write, update amount_sent and redo while loop
-            amount_sent += tmp_read;
-        }
-    }
-    
-    return amount_sent;
+ssize_t udp_client_read(udp_client_t * client, char * buffer, size_t buffer_sz)
+{
+    return udp_read_all(client->socket_fd, buffer, buffer_sz, NULL);
 }
 
 static int setup_client(udp_client_t * client)

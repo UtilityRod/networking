@@ -6,5 +6,6 @@
 #include <udp_server.h>
 #include <udp_client.h>
 #include <tcp_operations.h>
+#include <udp_operations.h>
 
 #endif

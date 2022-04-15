@@ -72,13 +72,16 @@ void udp_server_teardown(udp_server_t * server)
     free(server);
 }
 
-ssize_t udp_server_recv_all(udp_server_t * server, char * buffer, size_t max)
+ssize_t udp_server_read_respond(udp_server_t * server, char * buffer, 
+                                size_t buffer_sz, responder_t respond)
 {
-    struct sockaddr_storage client_addr = {0};
-    socklen_t addr_len = sizeof(client_addr);
-    // Read all data from UDP socket
-    ssize_t amount_read = recvfrom(server->socket_fd, buffer, max - 1 , 0, (struct sockaddr *)&client_addr, &addr_len);
-    return amount_read;
+    if ((NULL == server) || (server->socket_fd <= 0) ||
+        (NULL == buffer) || (0 == buffer_sz))
+    {
+        return -1;
+    }
+    
+    return udp_read_all(server->socket_fd, buffer, buffer_sz, respond);
 }
 
 static int setup_server(udp_server_t * server)
