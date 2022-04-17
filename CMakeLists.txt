@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 set ( DIRECTORIES
       ${CMAKE_CURRENT_SOURCE_DIR}/tcp
       ${CMAKE_CURRENT_SOURCE_DIR}/udp
+      ${CMAKE_CURRENT_SOURCE_DIR}/uds
       ${CMAKE_CURRENT_SOURCE_DIR}/socket_operations
     )
 
@@ -13,6 +14,7 @@ set ( SOURCES
       ${CMAKE_CURRENT_SOURCE_DIR}/udp/udp_client.c
       ${CMAKE_CURRENT_SOURCE_DIR}/socket_operations/tcp_operations.c
       ${CMAKE_CURRENT_SOURCE_DIR}/socket_operations/udp_operations.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/uds/uds_server.c
     )
 
 add_compile_options("-g")
