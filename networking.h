@@ -8,5 +8,6 @@
 #include <tcp_operations.h>
 #include <udp_operations.h>
 #include <uds_server.h>
+#include <uds_client.h>
 
 #endif

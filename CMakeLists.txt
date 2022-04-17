@@ -12,9 +12,10 @@ set ( SOURCES
       ${CMAKE_CURRENT_SOURCE_DIR}/tcp/tcp_client.c
       ${CMAKE_CURRENT_SOURCE_DIR}/udp/udp_server.c
       ${CMAKE_CURRENT_SOURCE_DIR}/udp/udp_client.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/uds/uds_server.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/uds/uds_client.c
       ${CMAKE_CURRENT_SOURCE_DIR}/socket_operations/tcp_operations.c
       ${CMAKE_CURRENT_SOURCE_DIR}/socket_operations/udp_operations.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/uds/uds_server.c
     )
 
 add_compile_options("-g")

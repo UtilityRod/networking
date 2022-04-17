@@ -77,6 +77,18 @@ void uds_server_teardown(uds_server_t * server)
             server->socket_fd = -1;
         }
 
+       // Check to see if the socket file passed exists
+        struct stat statbuff = {0};
+        int stat_check = stat(server->socket_file, &statbuff);
+
+        if (stat_check != -1)
+        {
+            // If file exists and it is a socket file then unlink
+            if (S_ISSOCK(statbuff.st_mode))
+            {
+                unlink(server->socket_file);
+            }
+        }
         free(server);
     }
 }
