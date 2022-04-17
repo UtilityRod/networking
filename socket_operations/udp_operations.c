@@ -20,7 +20,8 @@ ssize_t udp_read_all(int socket_fd, char * buffer,
     {
         // Read the expected amount of data into the buffer
         char * offset = buffer + amount_read;
-        ssize_t tmp_read = recvfrom(socket_fd, buffer, buffer_sz - 1 , 0, 
+        buffer_sz = buffer_sz - amount_read;
+        ssize_t tmp_read = recvfrom(socket_fd, offset, buffer_sz , 0, 
                                     (struct sockaddr *)&dest_address, &addr_len);
 
         if (-1 == tmp_read)
@@ -78,7 +79,8 @@ ssize_t udp_send_all(int socket_fd, struct addrinfo * info, char * buffer, size_
     {
         // Send all data passed to the function inside of the buffer to the server
         char * offset = buffer + amount_sent;
-        ssize_t tmp_sent = sendto(socket_fd, offset, strlen(offset), 0, info->ai_addr, info->ai_addrlen);
+        buffer_sz = buffer_sz - amount_sent;
+        ssize_t tmp_sent = sendto(socket_fd, offset, buffer_sz, 0, info->ai_addr, info->ai_addrlen);
 
         if (-1 == tmp_sent)
         {
