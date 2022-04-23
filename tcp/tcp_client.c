@@ -97,7 +97,7 @@ int tcp_client_connect(tcp_client_t * client)
         return -1;
     }
 
-    return 0;
+    return client->socket_fd;
 }
 
 void tcp_client_disconnect(tcp_client_t * client)

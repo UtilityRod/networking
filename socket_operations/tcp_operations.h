@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-int tcp_read_all(int socket_fd, char * buffer, size_t buffer_sz);
-int tcp_send_all(int socket_fd, char * buffer, size_t buffer_sz);
+int tcp_read_all(int socket_fd, void * buffer, size_t buffer_sz);
+int tcp_send_all(int socket_fd, void * buffer, size_t buffer_sz);
 
 #endif

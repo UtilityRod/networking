@@ -3,6 +3,8 @@
 
 #include <stddef.h>
 
+#define ISVALIDSOCKET(x) (x > 0)
+
 typedef struct tcp_client tcp_client_t;
 
 tcp_client_t * tcp_client_setup(const char * address, const char * port);
