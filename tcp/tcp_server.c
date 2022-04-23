@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <ssl_operations.h>
 
 typedef enum {HOSTNAME_SZ = 50} network_sizes_t;
 
@@ -120,6 +121,12 @@ void tcp_server_accept_fork(tcp_server_t * server, char * exe)
     
     // There is nothing to return
     return;
+}
+
+int tcp_server_get_socket(tcp_server_t * server)
+{
+
+    return (server != NULL) ? server->socket_fd : -1;
 }
 
 static int setup_server(tcp_server_t * server)

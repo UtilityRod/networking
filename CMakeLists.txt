@@ -16,8 +16,11 @@ set ( SOURCES
       ${CMAKE_CURRENT_SOURCE_DIR}/uds/uds_client.c
       ${CMAKE_CURRENT_SOURCE_DIR}/socket_operations/tcp_operations.c
       ${CMAKE_CURRENT_SOURCE_DIR}/socket_operations/udp_operations.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/socket_operations/ssl_operations.c
     )
 
 add_compile_options("-g")
 add_library(networking_shared SHARED EXCLUDE_FROM_ALL ${SOURCES})
 target_include_directories(networking_shared PUBLIC ${DIRECTORIES})
+find_package(OpenSSL)
+target_link_libraries(networking_shared PUBLIC OpenSSL::SSL OpenSSL::Crypto)

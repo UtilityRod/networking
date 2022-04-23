@@ -9,5 +9,6 @@
 #include <udp_operations.h>
 #include <uds_server.h>
 #include <uds_client.h>
+#include <ssl_operations.h>
 
 #endif
